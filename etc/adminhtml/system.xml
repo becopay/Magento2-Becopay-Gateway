@@ -21,6 +21,10 @@
                     <label>Merchant Api Key</label>
                     <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
                 </field>
+                <field id="merchant_currency" translate="label" type="text" sortOrder="60" showInDefault="1" showInWebsite="1"
+                       showInStore="0">
+                    <label>Merchant Currency</label>
+                </field>
                 <field id="after_order_status" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>Order Status After Payment</label>
                     <source_model>Magento\Sales\Model\Config\Source\Order\Status</source_model>

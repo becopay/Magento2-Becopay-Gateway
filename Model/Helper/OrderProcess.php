@@ -43,6 +43,10 @@ class OrderProcess
      */
     const STATUS_FAILED = 'failed';
     /**
+     * Merchant default currency
+     */
+    const MERCHANT_CURRENCY = 'IRR';
+    /**
      * @var
      */
     public $error;
@@ -89,6 +93,11 @@ class OrderProcess
      */
     protected $cart;
 
+    /**
+     * @var Merchant currency set on panel
+     */
+    private $merchantCurrency;
+
 
     /**
      * OrderProcess constructor.
@@ -133,6 +142,7 @@ class OrderProcess
             $this->getConfig('api_key'),
             $this->getConfig('mobile')
         );
+        $this->merchantCurrency = $this->getConfig('merchant_currency') ?: $this::MERCHANT_CURRENCY;
     }
 
     /**
@@ -151,19 +161,35 @@ class OrderProcess
         $order = $this->getOrder();
         $address = $order->getShippingAddress();
 
+        $description = implode(', ', [
+            'OrderId: ' . $this->getOrderId(),
+            'Email: ' . $address->getEmail(),
+            'Amount: ' . $amount . ' ' . $this->getCurrency()
+        ]);
+
         $invoice = $this->becopayGateway->create(
             uniqid($this->getOrderId() . '-'),
             $amount,
-            implode(' ', [
-                'Email: ' . $address->getEmail() .
-                ' Amount: ' . $amount
-            ]));
+            $description,
+            $this->getCurrency(),
+            $this->merchantCurrency
+        );
 
         if (!$invoice) {
             $this->error = $this->becopayGateway->error;
             return false;
-        } else
-            return $invoice;
+        }
+
+        if (
+            $invoice->merchantCur != $this->merchantCurrency ||
+            $invoice->payerCur != $this->getCurrency() ||
+            $invoice->payerAmount != $amount
+        ) {
+            $this->error = 'Gateway response not valid';
+            return false;
+        }
+
+        return $invoice;
 
     }
 
@@ -188,7 +214,11 @@ class OrderProcess
             return false;
         }
 
-        if ($invoice->price != $amount) {
+        if (
+            $invoice->merchantCur != $this->merchantCurrency ||
+            $invoice->payerCur != $this->getCurrency() ||
+            $invoice->payerAmount != $amount
+        ) {
             $this->error = 'amount is not same. invoice id ' . $invoice->id;
             return false;
         }
@@ -221,11 +251,26 @@ class OrderProcess
         $order = $this->getOrder();
         $amount = $order->getGrandTotal();
 
-        return intval($amount);
+        return floatval($amount);
+    }
+
+    /**
+     * Return store currency
+     *
+     * @return string
+     */
+    public function getCurrency()
+    {
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $currencysymbol = $objectManager->get('Magento\Store\Model\StoreManagerInterface');
+        $currency = $currencysymbol->getStore()->getCurrentCurrencyCode();
+
+        return $currency;
     }
 
     /**
      * Get becopay configuration on magento
+     *
      * @param $key
      * @return mixed
      */
@@ -329,6 +374,17 @@ class OrderProcess
             )
                 ->setIsCustomerNotified(true)
                 ->save();
+        }
+    }
+
+    /**
+     * Clear the cart
+     */
+    public function clearCart(){
+        $allItems = $this->session->getQuote()->getAllVisibleItems();
+        foreach ($allItems as $item) {
+            $itemId = $item->getItemId();
+            $this->cart->removeItem($itemId)->save();
         }
     }
 }

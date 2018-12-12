@@ -66,6 +66,4 @@ class Callback extends Action
 
         return $resultRedirect->setPath('checkout/cart', ['_secure' => true]);
     }
-
-
 }

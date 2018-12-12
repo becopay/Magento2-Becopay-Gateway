@@ -11,6 +11,7 @@
                 <order_status>pending_payment</order_status>
                 <title>Becopay Gateway Payment</title>
                 <currency>USD</currency>
+                <merchant_currency>IRR</merchant_currency>
                 <after_order_status>processing</after_order_status>
                 <can_use_checkout>1</can_use_checkout>
                 <is_gateway>1</is_gateway>
